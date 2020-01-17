@@ -61,6 +61,9 @@ type Configuration struct {
 	// (i.e., invalid signature, parsing error), and the problem that occurred when parsing them
 	DisabledSchemeManagers map[SchemeManagerIdentifier]*SchemeManagerError
 
+	// Listeners for configuration changes from initialization and updating of the schemes
+	UpdateListeners []ConfigurationListener
+
 	Warnings []string
 
 	kssPublicKeys map[SchemeManagerIdentifier]map[int]*rsa.PublicKey
@@ -72,6 +75,9 @@ type Configuration struct {
 
 	options ConfigurationOptions
 }
+
+// ConfigurationListeners are the interface provided to react to changes in schemes.
+type ConfigurationListener func(conf *Configuration)
 
 // ConfigurationFileHash encodes the SHA256 hash of an authenticated
 // file under a scheme manager within the configuration folder.
@@ -224,6 +230,7 @@ func (conf *Configuration) ParseFolder() (err error) {
 	}
 
 	conf.initialized = true
+	conf.CallListeners()
 	if mgrerr != nil {
 		return mgrerr
 	}
@@ -260,6 +267,7 @@ func (conf *Configuration) ParseOrRestoreFolder() error {
 		}
 	}
 
+	conf.CallListeners()
 	return err
 }
 
@@ -827,7 +835,12 @@ func (conf *Configuration) InstallSchemeManager(manager *SchemeManager, publicke
 		return err
 	}
 
-	return conf.ParseSchemeManagerFolder(filepath.Join(conf.Path, name), manager)
+	if err := conf.ParseSchemeManagerFolder(filepath.Join(conf.Path, name), manager); err != nil {
+		return err
+	}
+
+	conf.CallListeners()
+	return nil
 }
 
 // DownloadSchemeManagerSignature downloads, stores and verifies the latest version
@@ -1654,4 +1667,10 @@ func firstExistingPath(paths []string) string {
 		}
 	}
 	return ""
+}
+
+func (conf *Configuration) CallListeners() {
+	for _, listener := range conf.UpdateListeners {
+		listener(conf)
+	}
 }
