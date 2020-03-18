@@ -192,42 +192,50 @@ func (s *Server) StartSession(req interface{}, handler server.SessionHandler,
 }
 
 // GetSessionResult retrieves the result of the specified IRMA session.
-func GetSessionResult(token string) *server.SessionResult {
-	return s.GetSessionResult(token)
+func GetSessionResult(backendToken irma.BackendToken) *server.SessionResult {
+	return s.GetSessionResult(backendToken)
 }
-func (s *Server) GetSessionResult(token string) *server.SessionResult {
-	session := s.sessions.get(token)
+func (s *Server) GetSessionResult(backendToken irma.BackendToken) *server.SessionResult {
+	session := s.sessions.get(backendToken)
 	if session == nil {
-		s.conf.Logger.Warn("Session result requested of unknown session ", token)
+		s.conf.Logger.Warn("Session result requested of unknown session ", backendToken)
 		return nil
 	}
 	return session.result
 }
 
 // GetRequest retrieves the request submitted by the requestor that started the specified IRMA session.
-func GetRequest(token string) irma.RequestorRequest {
+func GetRequest(token irma.BackendToken) irma.RequestorRequest {
 	return s.GetRequest(token)
 }
-func (s *Server) GetRequest(token string) irma.RequestorRequest {
-	session := s.sessions.get(token)
+func (s *Server) GetRequest(backendToken irma.BackendToken) irma.RequestorRequest {
+	session := s.sessions.get(backendToken)
 	if session == nil {
-		s.conf.Logger.Warn("Session request requested of unknown session ", token)
+		s.conf.Logger.Warn("Session request requested of unknown session ", backendToken)
 		return nil
 	}
 	return session.rrequest
 }
 
 // CancelSession cancels the specified IRMA session.
-func CancelSession(token string) error {
-	return s.CancelSession(token)
+func CancelSession(backendToken irma.BackendToken) error {
+	return s.CancelSession(backendToken)
 }
-func (s *Server) CancelSession(token string) error {
-	session := s.sessions.get(token)
+func (s *Server) CancelSession(backendToken irma.BackendToken) error {
+	session := s.sessions.get(backendToken)
 	if session == nil {
-		return server.LogError(errors.Errorf("can't cancel unknown session %s", token))
+		return server.LogError(errors.Errorf("can't cancel unknown session %s", backendToken))
 	}
 	session.handleDelete()
 	return nil
+}
+
+func SetOptions(backendToken irma.BackendToken, request *server.OptionsRequest) *server.SessionOptions {
+	return s.SetOptions(backendToken, request)
+}
+func (s *Server) SetOptions(backendToken irma.BackendToken, request *server.OptionsRequest) *server.SessionOptions {
+	session := s.sessions.get(backendToken)
+	return session.updateOptions(request)
 }
 
 // Revoke revokes the earlier issued credential specified by key. (Can only be used if this server
@@ -242,25 +250,25 @@ func (s *Server) Revoke(credid irma.CredentialTypeIdentifier, key string, issued
 
 // SubscribeServerSentEvents subscribes the HTTP client to server sent events on status updates
 // of the specified IRMA session.
-func SubscribeServerSentEvents(w http.ResponseWriter, r *http.Request, token string, requestor bool) error {
-	return s.SubscribeServerSentEvents(w, r, token, requestor)
+func SubscribeServerSentEvents(w http.ResponseWriter, r *http.Request, backendToken irma.BackendToken, requestor bool) error {
+	return s.SubscribeServerSentEvents(w, r, backendToken, requestor)
 }
-func (s *Server) SubscribeServerSentEvents(w http.ResponseWriter, r *http.Request, token string, requestor bool) error {
+func (s *Server) SubscribeServerSentEvents(w http.ResponseWriter, r *http.Request, backendToken irma.BackendToken, requestor bool) error {
 	if !s.conf.EnableSSE {
 		return errors.New("Server sent events disabled")
 	}
 
 	var session *session
 	if requestor {
-		session = s.sessions.get(token)
+		session = s.sessions.get(backendToken)
 	} else {
-		session = s.sessions.clientGet(token)
+		session = s.sessions.clientGet(backendToken)
 	}
 	if session == nil {
-		return server.LogError(errors.Errorf("can't subscribe to server sent events of unknown session %s", token))
+		return server.LogError(errors.Errorf("can't subscribe to server sent events of unknown session %s", backendToken))
 	}
 	if session.status.Finished() {
-		return server.LogError(errors.Errorf("can't subscribe to server sent events of finished session %s", token))
+		return server.LogError(errors.Errorf("can't subscribe to server sent events of finished session %s", backendToken))
 	}
 
 	// The EventSource.onopen Javascript callback is not consistently called across browsers (Chrome yes, Firefox+Safari no).
@@ -271,7 +279,7 @@ func (s *Server) SubscribeServerSentEvents(w http.ResponseWriter, r *http.Reques
 	//   event to just the webclient currently listening. (Thus the handler of this "open" event must be idempotent.)
 	go func() {
 		time.Sleep(200 * time.Millisecond)
-		s.serverSentEvents.SendMessage("session/"+token, sse.NewMessage("", "", "open"))
+		s.serverSentEvents.SendMessage("session/"+backendToken, sse.NewMessage("", "", "open"))
 	}()
 	s.serverSentEvents.ServeHTTP(w, r)
 	return nil

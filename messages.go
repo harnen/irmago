@@ -22,8 +22,9 @@ type Status string
 var ForceHttps bool = false
 
 const (
-	MinVersionHeader = "X-IRMA-MinProtocolVersion"
-	MaxVersionHeader = "X-IRMA-MaxProtocolVersion"
+	MinVersionHeader    = "X-IRMA-MinProtocolVersion"
+	MaxVersionHeader    = "X-IRMA-MaxProtocolVersion"
+	AuthorizationHeader = "Authorization"
 )
 
 // ProtocolVersion encodes the IRMA protocol version of an IRMA session.
@@ -170,8 +171,8 @@ type Qr struct {
 type SchemeManagerRequest Qr
 
 // Tokens to identify a session from the perspective of the different agents
-type BackendToken  = string
-type ClientToken   = string
+type BackendToken = string
+type ClientToken = string
 type FrontendToken = string
 
 // Authorization headers

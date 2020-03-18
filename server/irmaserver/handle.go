@@ -88,6 +88,13 @@ func (session *session) handleGetStatus() (server.Status, *irma.RemoteError) {
 	return session.status, nil
 }
 
+func (session *session) handlePostOptions(r *server.OptionsRequest, token irma.FrontendToken) (*server.SessionOptions, *irma.RemoteError) {
+	if token != session.frontendToken {
+		return nil, server.RemoteError(server.ErrorUnauthorized, "")
+	}
+	return session.updateOptions(r), nil
+}
+
 func (session *session) handlePostSignature(signature *irma.SignedMessage) (*irma.ProofStatus, *irma.RemoteError) {
 	if session.status != server.StatusConnected {
 		return nil, server.RemoteError(server.ErrorUnexpectedRequest, "Session not yet started or already finished")
@@ -298,6 +305,24 @@ func (s *Server) handleSessionGet(w http.ResponseWriter, r *http.Request) {
 	session := r.Context().Value("session").(*session)
 	res, err := session.handleGetRequest(&min, &max)
 	server.WriteResponse(w, res, err)
+}
+
+func (s *Server) handleSessionOptions(w http.ResponseWriter, r *http.Request) {
+	var optionsRequest *server.OptionsRequest
+	bts, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		server.WriteError(w, server.ErrorMalformedInput, err.Error())
+		return
+	}
+	err = irma.UnmarshalValidate(bts, &optionsRequest)
+	if err != nil {
+		server.WriteError(w, server.ErrorMalformedInput, err.Error())
+		return
+	}
+	frontendToken := r.Header.Get(irma.AuthorizationHeader)
+	session := r.Context().Value("session").(*session)
+	res, rerr := session.handlePostOptions(optionsRequest, frontendToken)
+	server.WriteResponse(w, res, rerr)
 }
 
 func (s *Server) handleStaticMessage(w http.ResponseWriter, r *http.Request) {

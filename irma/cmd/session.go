@@ -102,15 +102,22 @@ func libraryRequest(
 
 	// Start the session
 	resultchan := make(chan *server.SessionResult)
-	qr, _, _, err := irmaServer.StartSession(request, func(r *server.SessionResult) {
+	qr, backendToken, _, err := irmaServer.StartSession(request, func(r *server.SessionResult) {
 		resultchan <- r
 	})
 	if err != nil {
 		return nil, errors.WrapPrefix(err, "IRMA session failed", 0)
 	}
 
+	// Currently, the default session options are the same in all conditions,
+	// so do only fetch them when a change is requested
+	sessionOptions := &server.SessionOptions{}
+	if request.SessionRequest().Action() == irma.ActionIssuing {
+		sessionOptions = irmaServer.SetOptions(backendToken, &server.OptionsRequest{EnableBinding: true})
+	}
+
 	// Print QR code
-	if err := printQr(qr, noqr); err != nil {
+	if err := printQr(qr, noqr, sessionOptions); err != nil {
 		return nil, errors.WrapPrefix(err, "Failed to print QR", 0)
 	}
 
@@ -126,14 +133,14 @@ func serverRequest(
 	logger.Debug("Server URL: ", serverurl)
 
 	// Start session at server
-	qr, transport, err := postRequest(serverurl, request, name, authmethod, key)
+	qr, sessionOptions, transport, err := postRequest(serverurl, request, name, authmethod, key)
 	if err != nil {
 		return nil, err
 	}
 
 	// Print session QR
 	logger.Debug("QR: ", prettyprint(qr))
-	if err := printQr(qr, noqr); err != nil {
+	if err := printQr(qr, noqr, sessionOptions); err != nil {
 		return nil, errors.WrapPrefix(err, "Failed to print QR", 0)
 	}
 
@@ -174,7 +181,7 @@ func serverRequest(
 	return result, nil
 }
 
-func postRequest(serverurl string, request irma.RequestorRequest, name, authmethod, key string) (*irma.Qr, *irma.HTTPTransport, error) {
+func postRequest(serverurl string, request irma.RequestorRequest, name, authmethod, key string) (*irma.Qr, *server.SessionOptions, *irma.HTTPTransport, error) {
 	var (
 		err       error
 		pkg       = &server.SessionPackage{}
@@ -191,17 +198,26 @@ func postRequest(serverurl string, request irma.RequestorRequest, name, authmeth
 		var jwtstr string
 		jwtstr, err = signRequest(request, name, authmethod, key)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 		logger.Debug("Session request JWT: ", jwtstr)
 		err = transport.Post("session", pkg, jwtstr)
 	default:
-		return nil, nil, errors.New("Invalid authentication method (must be none, token, hmac or rsa)")
+		return nil, nil, nil, errors.New("Invalid authentication method (must be none, token, hmac or rsa)")
+	}
+
+	if err != nil {
+		return nil, nil, transport, err
 	}
 
 	backendToken := pkg.Token
 	transport.Server += fmt.Sprintf("session/%s/", backendToken)
-	return pkg.SessionPtr, transport, err
+	sessionOptions := &server.SessionOptions{}
+	if pkg.SessionPtr.Type == irma.ActionIssuing {
+		transport.SetHeader(irma.AuthorizationHeader, pkg.FrontendToken)
+		err = transport.Post(pkg.SessionPtr.URL+"/options", &server.OptionsRequest{EnableBinding: true}, &sessionOptions)
+	}
+	return pkg.SessionPtr, sessionOptions, transport, err
 }
 
 // Configuration functions

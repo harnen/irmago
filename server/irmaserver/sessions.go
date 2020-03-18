@@ -1,7 +1,6 @@
 package irmaserver
 
 import (
-	"crypto/rand"
 	"sync"
 	"time"
 
@@ -28,6 +27,7 @@ type session struct {
 	request          irma.SessionRequest
 	legacyCompatible bool // if the request is convertible to pre-condiscon format
 
+	options       server.SessionOptions
 	status        server.Status
 	prevStatus    server.Status
 	sse           *sse.Server
@@ -155,24 +155,27 @@ func (s *memorySessionStore) deleteExpired() {
 var one *big.Int = big.NewInt(1)
 
 func (s *Server) newSession(action irma.Action, request irma.RequestorRequest) *session {
-	token := newSessionToken()
-	clientToken := newSessionToken()
+	backendToken := randomToken(20, sessionChars)
+	clientToken := randomToken(20, sessionChars)
+	frontendToken := randomToken(20, sessionChars)
 
 	ses := &session{
-		action:       action,
-		rrequest:     request,
-		request:      request.SessionRequest(),
-		lastActive:   time.Now(),
-		backendToken: token,
-		clientToken:  clientToken,
-		status:       server.StatusInitialized,
-		prevStatus:   server.StatusInitialized,
-		conf:         s.conf,
-		sessions:     s.sessions,
-		sse:          s.serverSentEvents,
+		action:        action,
+		rrequest:      request,
+		request:       request.SessionRequest(),
+		options:       server.SessionOptions{},
+		lastActive:    time.Now(),
+		backendToken:  backendToken,
+		clientToken:   clientToken,
+		frontendToken: frontendToken,
+		status:        server.StatusInitialized,
+		prevStatus:    server.StatusInitialized,
+		conf:          s.conf,
+		sessions:      s.sessions,
+		sse:           s.serverSentEvents,
 		result: &server.SessionResult{
 			LegacySession: request.SessionRequest().Base().Legacy(),
-			Token:         token,
+			Token:         backendToken,
 			Type:          action,
 			Status:        server.StatusInitialized,
 		},
@@ -185,20 +188,4 @@ func (s *Server) newSession(action irma.Action, request irma.RequestorRequest) *
 	s.sessions.add(ses)
 
 	return ses
-}
-
-func newSessionToken() string {
-	count := 20
-
-	r := make([]byte, count)
-	_, err := rand.Read(r)
-	if err != nil {
-		panic(err)
-	}
-
-	b := make([]byte, count)
-	for i := range b {
-		b[i] = sessionChars[r[i]%byte(len(sessionChars))]
-	}
-	return string(b)
 }

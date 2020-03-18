@@ -292,7 +292,7 @@ func startServer(port int) {
 	}()
 }
 
-func printQr(qr *irma.Qr, noqr bool) error {
+func printQr(qr *irma.Qr, noqr bool, options *server.SessionOptions) error {
 	qrBts, err := json.Marshal(qr)
 	if err != nil {
 		return err
@@ -306,6 +306,9 @@ func printQr(qr *irma.Qr, noqr bool) error {
 			BlackChar: qrterminal.BLACK,
 			WhiteChar: qrterminal.WHITE,
 		})
+	}
+	if options.BindingEnabled {
+		fmt.Println("\nBinding code:", options.BindingCode)
 	}
 	return nil
 }

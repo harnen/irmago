@@ -3,6 +3,7 @@ package irmaserver
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
@@ -51,6 +52,16 @@ func (session *session) onUpdate() {
 	session.sse.SendMessage("session/"+session.backendToken,
 		sse.SimpleMessage(fmt.Sprintf(`"%s"`, session.status)),
 	)
+}
+
+func (session *session) updateOptions(request *server.OptionsRequest) *server.SessionOptions {
+	session.options.BindingEnabled = request.EnableBinding
+	if request.EnableBinding {
+		session.options.BindingCode = randomToken(4, "0123456789")
+	} else {
+		session.options.BindingCode = ""
+	}
+	return &session.options
 }
 
 func (session *session) fail(err server.Error, message string) *irma.RemoteError {
@@ -425,4 +436,18 @@ func (s *Server) sessionMiddleware(next http.Handler) http.Handler {
 
 		next.ServeHTTP(w, r.WithContext(context.WithValue(ctx, "session", session)))
 	})
+}
+
+func randomToken(count int, characterSet string) string {
+	r := make([]byte, count)
+	_, err := rand.Read(r)
+	if err != nil {
+		panic(err)
+	}
+
+	b := make([]byte, count)
+	for i := range b {
+		b[i] = characterSet[r[i]%byte(len(characterSet))]
+	}
+	return string(b)
 }

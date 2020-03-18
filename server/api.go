@@ -45,6 +45,15 @@ type SessionResult struct {
 	LegacySession bool `json:"-"` // true if request was started with legacy (i.e. pre-condiscon) session request
 }
 
+type SessionOptions struct {
+	BindingEnabled bool   `json:"bindingEnabled"`
+	BindingCode    string `json:"bindingCode,omitempty"`
+}
+
+type OptionsRequest struct {
+	EnableBinding bool `json:"enableBinding,omitempty"`
+}
+
 // SessionHandler is a function that can handle a session result
 // once an IRMA session has completed.
 type SessionHandler func(*SessionResult)
