@@ -106,7 +106,7 @@ func (s *Server) HandlerFunc() http.HandlerFunc {
 	r.NotFound(errorWriter(notfound, server.WriteResponse))
 	r.MethodNotAllowed(errorWriter(notallowed, server.WriteResponse))
 
-	r.Route("/session/{token}", func(r chi.Router) {
+	r.Route("/session/{backendToken}", func(r chi.Router) {
 		r.Use(s.sessionMiddleware)
 		r.Delete("/", s.handleSessionDelete)
 		r.Get("/status", s.handleSessionStatus)
@@ -146,46 +146,49 @@ func (s *Server) Stop() {
 }
 
 // StartSession starts an IRMA session, running the handler on completion, if specified.
-// The session token (the second return parameter) can be used in GetSessionResult()
-// and CancelSession().
+// The session backendToken (the second return parameter) can be used in GetSessionResult()
+// and CancelSession(). The session frontendToken (the third return parameter) is needed
+// by frontend clients (i.e. browser libraries) to POST to the '/options' endpoint of the IRMA protocol.
 // The request parameter can be an irma.RequestorRequest, or an irma.SessionRequest, or a
 // ([]byte or string) JSON representation of one of those (for more details, see server.ParseSessionRequest().)
-func StartSession(request interface{}, handler server.SessionHandler) (*irma.Qr, string, error) {
+func StartSession(request interface{}, handler server.SessionHandler,
+) (*irma.Qr, irma.BackendToken, irma.FrontendToken, error) {
 	return s.StartSession(request, handler)
 }
-func (s *Server) StartSession(req interface{}, handler server.SessionHandler) (*irma.Qr, string, error) {
+func (s *Server) StartSession(req interface{}, handler server.SessionHandler,
+) (*irma.Qr, irma.BackendToken, irma.FrontendToken, error) {
 	rrequest, err := server.ParseSessionRequest(req)
 	if err != nil {
-		return nil, "", err
+		return nil, "", "", err
 	}
 
 	request := rrequest.SessionRequest()
 	action := request.Action()
 
 	if err := s.validateRequest(request); err != nil {
-		return nil, "", err
+		return nil, "", "", err
 	}
 
 	if action == irma.ActionIssuing {
 		if err := s.validateIssuanceRequest(request.(*irma.IssuanceRequest)); err != nil {
-			return nil, "", err
+			return nil, "", "", err
 		}
 	}
 
 	session := s.newSession(action, rrequest)
-	s.conf.Logger.WithFields(logrus.Fields{"action": action, "session": session.token}).Infof("Session started")
+	s.conf.Logger.WithFields(logrus.Fields{"action": action, "session": session.backendToken}).Infof("Session started")
 	if s.conf.Logger.IsLevelEnabled(logrus.DebugLevel) {
-		s.conf.Logger.WithFields(logrus.Fields{"session": session.token, "clienttoken": session.clientToken}).Info("Session request: ", server.ToJson(rrequest))
+		s.conf.Logger.WithFields(logrus.Fields{"session": session.backendToken, "clienttoken": session.clientToken}).Info("Session request: ", server.ToJson(rrequest))
 	} else {
-		s.conf.Logger.WithFields(logrus.Fields{"session": session.token}).Info("Session request (purged of attribute values): ", server.ToJson(purgeRequest(rrequest)))
+		s.conf.Logger.WithFields(logrus.Fields{"session": session.backendToken}).Info("Session request (purged of attribute values): ", server.ToJson(purgeRequest(rrequest)))
 	}
 	if handler != nil {
-		s.handlers[session.token] = handler
+		s.handlers[session.backendToken] = handler
 	}
 	return &irma.Qr{
 		Type: action,
 		URL:  s.conf.URL + "session/" + session.clientToken,
-	}, session.token, nil
+	}, session.backendToken, session.frontendToken, nil
 }
 
 // GetSessionResult retrieves the result of the specified IRMA session.

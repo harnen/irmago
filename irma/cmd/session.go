@@ -102,7 +102,7 @@ func libraryRequest(
 
 	// Start the session
 	resultchan := make(chan *server.SessionResult)
-	qr, _, err := irmaServer.StartSession(request, func(r *server.SessionResult) {
+	qr, _, _, err := irmaServer.StartSession(request, func(r *server.SessionResult) {
 		resultchan <- r
 	})
 	if err != nil {
@@ -199,8 +199,8 @@ func postRequest(serverurl string, request irma.RequestorRequest, name, authmeth
 		return nil, nil, errors.New("Invalid authentication method (must be none, token, hmac or rsa)")
 	}
 
-	token := pkg.Token
-	transport.Server += fmt.Sprintf("session/%s/", token)
+	backendToken := pkg.Token
+	transport.Server += fmt.Sprintf("session/%s/", backendToken)
 	return pkg.SessionPtr, transport, err
 }
 

@@ -30,11 +30,11 @@ import (
 
 func (session *session) markAlive() {
 	session.lastActive = time.Now()
-	session.conf.Logger.WithFields(logrus.Fields{"session": session.token}).Debugf("Session marked active, expiry delayed")
+	session.conf.Logger.WithFields(logrus.Fields{"session": session.backendToken}).Debugf("Session marked active, expiry delayed")
 }
 
 func (session *session) setStatus(status server.Status) {
-	session.conf.Logger.WithFields(logrus.Fields{"session": session.token, "prevStatus": session.prevStatus, "status": status}).
+	session.conf.Logger.WithFields(logrus.Fields{"session": session.backendToken, "prevStatus": session.prevStatus, "status": status}).
 		Info("Session status updated")
 	session.status = status
 	session.result.Status = status
@@ -48,7 +48,7 @@ func (session *session) onUpdate() {
 	session.sse.SendMessage("session/"+session.clientToken,
 		sse.SimpleMessage(fmt.Sprintf(`"%s"`, session.status)),
 	)
-	session.sse.SendMessage("session/"+session.token,
+	session.sse.SendMessage("session/"+session.backendToken,
 		sse.SimpleMessage(fmt.Sprintf(`"%s"`, session.status)),
 	)
 }
@@ -56,7 +56,7 @@ func (session *session) onUpdate() {
 func (session *session) fail(err server.Error, message string) *irma.RemoteError {
 	rerr := server.RemoteError(err, message)
 	session.setStatus(server.StatusCancelled)
-	session.result = &server.SessionResult{Err: rerr, Token: session.token, Status: server.StatusCancelled, Type: session.action}
+	session.result = &server.SessionResult{Err: rerr, Token: session.backendToken, Status: server.StatusCancelled, Type: session.action}
 	return rerr
 }
 
@@ -392,7 +392,7 @@ func (s *Server) cacheMiddleware(next http.Handler) http.Handler {
 
 func (s *Server) sessionMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		token := chi.URLParam(r, "token")
+		token := chi.URLParam(r, "backendToken")
 		session := s.sessions.clientGet(token)
 		if session == nil {
 			server.WriteError(w, server.ErrorSessionUnknown, "")

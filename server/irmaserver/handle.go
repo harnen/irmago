@@ -28,7 +28,7 @@ func (session *session) handleDelete() {
 	}
 	session.markAlive()
 
-	session.result = &server.SessionResult{Token: session.token, Status: server.StatusCancelled, Type: session.action}
+	session.result = &server.SessionResult{Token: session.backendToken, Status: server.StatusCancelled, Type: session.action}
 	session.setStatus(server.StatusCancelled)
 }
 
@@ -38,7 +38,7 @@ func (session *session) handleGetRequest(min, max *irma.ProtocolVersion) (irma.S
 	}
 
 	session.markAlive()
-	logger := session.conf.Logger.WithFields(logrus.Fields{"session": session.token})
+	logger := session.conf.Logger.WithFields(logrus.Fields{"session": session.backendToken})
 
 	// we include the latest revocation updates for the client here, as opposed to when the session
 	// was started, so that the client always gets the very latest revocation records
@@ -306,7 +306,7 @@ func (s *Server) handleStaticMessage(w http.ResponseWriter, r *http.Request) {
 		server.WriteResponse(w, nil, server.RemoteError(server.ErrorInvalidRequest, "unknown static session"))
 		return
 	}
-	qr, _, err := s.StartSession(rrequest, s.doResultCallback)
+	qr, _, _, err := s.StartSession(rrequest, s.doResultCallback)
 	if err != nil {
 		server.WriteResponse(w, nil, server.RemoteError(server.ErrorMalformedInput, err.Error()))
 		return

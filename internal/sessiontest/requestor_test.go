@@ -56,7 +56,7 @@ func requestorSessionHelper(t *testing.T, request irma.SessionRequest, client *i
 	clientChan := make(chan *SessionResult)
 	serverChan := make(chan *server.SessionResult)
 
-	qr, token, err := irmaServer.StartSession(request, func(result *server.SessionResult) {
+	qr, backendToken, _, err := irmaServer.StartSession(request, func(result *server.SessionResult) {
 		serverChan <- result
 	})
 	require.NoError(t, err)
@@ -86,7 +86,7 @@ func requestorSessionHelper(t *testing.T, request irma.SessionRequest, client *i
 	}
 
 	serverResult := <-serverChan
-	require.Equal(t, token, serverResult.Token)
+	require.Equal(t, backendToken, serverResult.Token)
 
 	if opts&sessionOptionRetryPost > 0 {
 		req, err := http.NewRequest(http.MethodPost,
@@ -109,7 +109,7 @@ func requestorSessionHelper(t *testing.T, request irma.SessionRequest, client *i
 func TestRequestorInvalidRequest(t *testing.T) {
 	StartIrmaServer(t, false)
 	defer StopIrmaServer()
-	_, _, err := irmaServer.StartSession(irma.NewDisclosureRequest(
+	_, _, _, err := irmaServer.StartSession(irma.NewDisclosureRequest(
 		irma.NewAttributeTypeIdentifier("irma-demo.RU.foo.bar"),
 		irma.NewAttributeTypeIdentifier("irma-demo.baz.qux.abc"),
 	), nil)
@@ -119,7 +119,7 @@ func TestRequestorInvalidRequest(t *testing.T) {
 func TestRequestorDoubleGET(t *testing.T) {
 	StartIrmaServer(t, false)
 	defer StopIrmaServer()
-	qr, _, err := irmaServer.StartSession(irma.NewDisclosureRequest(
+	qr, _, _, err := irmaServer.StartSession(irma.NewDisclosureRequest(
 		irma.NewAttributeTypeIdentifier("irma-demo.RU.studentCard.studentID"),
 	), nil)
 	require.NoError(t, err)

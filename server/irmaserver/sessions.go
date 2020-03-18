@@ -20,8 +20,9 @@ type session struct {
 	locked bool
 
 	action           irma.Action
-	token            string
-	clientToken      string
+	backendToken     irma.BackendToken
+	clientToken      irma.ClientToken
+	frontendToken    irma.FrontendToken
 	version          *irma.ProtocolVersion
 	rrequest         irma.RequestorRequest
 	request          irma.SessionRequest
@@ -32,6 +33,7 @@ type session struct {
 	sse           *sse.Server
 	responseCache responseCache
 
+	clientAuth irma.ClientAuthorization
 	lastActive time.Time
 	result     *server.SessionResult
 
@@ -90,7 +92,7 @@ func (s *memorySessionStore) clientGet(t string) *session {
 func (s *memorySessionStore) add(session *session) {
 	s.Lock()
 	defer s.Unlock()
-	s.requestor[session.token] = session
+	s.requestor[session.backendToken] = session
 	s.client[session.clientToken] = session
 }
 
@@ -103,7 +105,7 @@ func (s *memorySessionStore) stop() {
 	defer s.Unlock()
 	for _, session := range s.requestor {
 		if session.sse != nil {
-			session.sse.CloseChannel("session/" + session.token)
+			session.sse.CloseChannel("session/" + session.backendToken)
 			session.sse.CloseChannel("session/" + session.clientToken)
 		}
 	}
@@ -124,11 +126,11 @@ func (s *memorySessionStore) deleteExpired() {
 
 		if session.lastActive.Add(timeout).Before(time.Now()) {
 			if !session.status.Finished() {
-				s.conf.Logger.WithFields(logrus.Fields{"session": session.token}).Infof("Session expired")
+				s.conf.Logger.WithFields(logrus.Fields{"session": session.backendToken}).Infof("Session expired")
 				session.markAlive()
 				session.setStatus(server.StatusTimeout)
 			} else {
-				s.conf.Logger.WithFields(logrus.Fields{"session": session.token}).Infof("Deleting session")
+				s.conf.Logger.WithFields(logrus.Fields{"session": session.backendToken}).Infof("Deleting session")
 				expired = append(expired, token)
 			}
 		}
@@ -141,7 +143,7 @@ func (s *memorySessionStore) deleteExpired() {
 	for _, token := range expired {
 		session := s.requestor[token]
 		if session.sse != nil {
-			session.sse.CloseChannel("session/" + session.token)
+			session.sse.CloseChannel("session/" + session.backendToken)
 			session.sse.CloseChannel("session/" + session.clientToken)
 		}
 		delete(s.client, session.clientToken)
@@ -157,17 +159,17 @@ func (s *Server) newSession(action irma.Action, request irma.RequestorRequest) *
 	clientToken := newSessionToken()
 
 	ses := &session{
-		action:      action,
-		rrequest:    request,
-		request:     request.SessionRequest(),
-		lastActive:  time.Now(),
-		token:       token,
-		clientToken: clientToken,
-		status:      server.StatusInitialized,
-		prevStatus:  server.StatusInitialized,
-		conf:        s.conf,
-		sessions:    s.sessions,
-		sse:         s.serverSentEvents,
+		action:       action,
+		rrequest:     request,
+		request:      request.SessionRequest(),
+		lastActive:   time.Now(),
+		backendToken: token,
+		clientToken:  clientToken,
+		status:       server.StatusInitialized,
+		prevStatus:   server.StatusInitialized,
+		conf:         s.conf,
+		sessions:     s.sessions,
+		sse:          s.serverSentEvents,
 		result: &server.SessionResult{
 			LegacySession: request.SessionRequest().Base().Legacy(),
 			Token:         token,
@@ -176,7 +178,7 @@ func (s *Server) newSession(action irma.Action, request irma.RequestorRequest) *
 		},
 	}
 
-	s.conf.Logger.WithFields(logrus.Fields{"session": ses.token}).Debug("New session started")
+	s.conf.Logger.WithFields(logrus.Fields{"session": ses.backendToken}).Debug("New session started")
 	nonce := common.RandomBigInt(new(big.Int).Lsh(big.NewInt(1), gabi.DefaultSystemParameters[2048].Lstatzk))
 	ses.request.Base().Nonce = nonce
 	ses.request.Base().Context = one

@@ -169,6 +169,14 @@ type Qr struct {
 
 type SchemeManagerRequest Qr
 
+// Tokens to identify a session from the perspective of the different agents
+type BackendToken  = string
+type ClientToken   = string
+type FrontendToken = string
+
+// Authorization headers
+type ClientAuthorization = string
+
 // Statuses
 const (
 	StatusConnected     = Status("connected")
