@@ -13,23 +13,12 @@ import (
 )
 
 var (
-//	httpServer              *http.Server
-//	irmaServer              *irmaserver.Server
-//	irmaServerConfiguration *server.Configuration
-//	requestorServer         *requestorserver.Server
-
 	logger   = logrus.New()
-	testdata = "/home/krol/go/src/github.com/privacybydesign/irmago/testdata"
+	testdata = "../testdata"
 )
 
 func main() {
-	//revocationTestCred  := irma.NewCredentialTypeIdentifier("irma-demo.MijnOverheid.root")
-	//revKeyshareTestAttr      := irma.NewAttributeTypeIdentifier("test.test.email.email")
-	//revKeyshareTestCred      := revKeyshareTestAttr.CredentialTypeIdentifier()
-	//addr := "192.168.2.103"
-	//addr := "0.0.0.0"
-	//addr := "localhost"
-	//addr1 := "0.0.0.0"
+
     var configuration = &requestorserver.Configuration{
         Configuration: &server.Configuration{
                 URL:                   "http://localhost:48682/irma",
