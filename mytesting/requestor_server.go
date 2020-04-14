@@ -21,7 +21,7 @@ func main() {
 
     var configuration = &requestorserver.Configuration{
         Configuration: &server.Configuration{
-                URL:                   "http://localhost:48682/irma",
+                URL:                   "http://192.168.2.103:48682/irma",
                 Logger:                logger,
                 DisableSchemesUpdate:  true,
                 SchemesPath:           filepath.Join(testdata, "irma_configuration"),
@@ -30,7 +30,7 @@ func main() {
                 StaticSessions: map[string]interface{}{
                         "staticsession": irma.ServiceProviderRequest{
                                 RequestorBaseRequest: irma.RequestorBaseRequest{
-                                        CallbackURL: "http://localhost:48685",
+                                        CallbackURL: "http://192.168.2.103:48685",
                                 },
                                 Request: &irma.DisclosureRequest{
                                         BaseRequest: irma.BaseRequest{LDContext: irma.LDContextDisclosureRequest},
