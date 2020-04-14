@@ -20,6 +20,7 @@ import (
 )
 
 func init() {
+	
 	irma.ForceHttps = false
 	irma.Logger.SetLevel(logrus.WarnLevel)
 }
@@ -132,21 +133,24 @@ func startSession(t *testing.T, request irma.SessionRequest, sessiontype string)
 		err    error
 	)
 
+	t.Log("startSession TestType " + TestType)
+	addr := "localhost"
+	//addr := "192.168.2.103"
 	switch TestType {
 	case "apiserver":
-		url := "http://localhost:8088/irma_api_server/api/v2/" + sessiontype
+		url := "http://"+addr+":8088/irma_api_server/api/v2/" + sessiontype
 		err = irma.NewHTTPTransport(url).Post("", qr, getJwt(t, request, sessiontype, jwt.SigningMethodNone))
 		qr.URL = url + "/" + qr.URL
 	case "irmaserver-jwt":
-		url := "http://localhost:48682"
+		url := "http://"+addr+":48682"
 		err = irma.NewHTTPTransport(url).Post("session", &sesPkg, getJwt(t, request, sessiontype, jwt.SigningMethodRS256))
 		qr = sesPkg.SessionPtr
 	case "irmaserver-hmac-jwt":
-		url := "http://localhost:48682"
+		url := "http://"+addr+":48682"
 		err = irma.NewHTTPTransport(url).Post("session", &sesPkg, getJwt(t, request, sessiontype, jwt.SigningMethodHS256))
 		qr = sesPkg.SessionPtr
 	case "irmaserver":
-		url := "http://localhost:48682"
+		url := "http://"+addr+":48682"
 		err = irma.NewHTTPTransport(url).Post("session", &sesPkg, request)
 		qr = sesPkg.SessionPtr
 	default:
@@ -203,16 +207,21 @@ func getJwt(t *testing.T, request irma.SessionRequest, sessiontype string, alg j
 }
 
 func sessionHelper(t *testing.T, request irma.SessionRequest, sessiontype string, client *irmaclient.Client) {
+	t.Log("sessionHelper")
 	if client == nil {
+		t.Log("client is nil")
 		var handler *TestClientHandler
 		client, handler = parseStorage(t)
 		defer test.ClearTestStorage(t, handler.storage)
 	}
 
-	if TestType == "irmaserver" || TestType == "irmaserver-jwt" || TestType == "irmaserver-hmac-jwt" {
+	t.Log(client.Configuration)
+
+	/*if TestType == "irmaserver" || TestType == "irmaserver-jwt" || TestType == "irmaserver-hmac-jwt" {
+		t.Log("Start Reuqestor server")
 		StartRequestorServer(JwtServerConfiguration)
 		defer StopRequestorServer()
-	}
+	}*/
 
 	qr := startSession(t, request, sessiontype)
 
@@ -229,6 +238,7 @@ func sessionHelper(t *testing.T, request irma.SessionRequest, sessiontype string
 
 func expectedServerName(t *testing.T, request irma.SessionRequest, conf *irma.Configuration) irma.TranslatedString {
 	localhost := "localhost"
+	//localhost := "192.168.2.103"
 	host := irma.NewTranslatedString(&localhost)
 
 	ir, ok := request.(*irma.IssuanceRequest)

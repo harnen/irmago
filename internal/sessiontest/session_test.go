@@ -24,7 +24,10 @@ func TestSigningSession(t *testing.T) {
 }
 
 func TestDisclosureSession(t *testing.T) {
+	t.Log("Running disclosure test")
+	
 	id := irma.NewAttributeTypeIdentifier("irma-demo.RU.studentCard.studentID")
+	//t.Log("~~~~~~~~~~~~~~~~~~~~~~~"+id)
 	request := getDisclosureRequest(id)
 	sessionHelper(t, request, "verification", nil)
 }
