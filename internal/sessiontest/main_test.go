@@ -134,8 +134,8 @@ func startSession(t *testing.T, request irma.SessionRequest, sessiontype string)
 	)
 
 	t.Log("startSession TestType " + TestType)
-	//addr := "localhost"
-	addr := "192.168.2.103"
+	addr := "localhost"
+	//addr := "192.168.2.103"
 	switch TestType {
 	case "apiserver":
 		url := "http://"+addr+":8088/irma_api_server/api/v2/" + sessiontype
@@ -217,11 +217,11 @@ func sessionHelper(t *testing.T, request irma.SessionRequest, sessiontype string
 
 	t.Log(client.Configuration)
 
-	/*if TestType == "irmaserver" || TestType == "irmaserver-jwt" || TestType == "irmaserver-hmac-jwt" {
+	if TestType == "irmaserver" || TestType == "irmaserver-jwt" || TestType == "irmaserver-hmac-jwt" {
 		t.Log("Start Reuqestor server")
 		StartRequestorServer(JwtServerConfiguration)
 		defer StopRequestorServer()
-	}*/
+	}
 
 	qr := startSession(t, request, sessiontype)
 
@@ -237,8 +237,8 @@ func sessionHelper(t *testing.T, request irma.SessionRequest, sessiontype string
 }
 
 func expectedServerName(t *testing.T, request irma.SessionRequest, conf *irma.Configuration) irma.TranslatedString {
-	//localhost := "localhost"
-	localhost := "192.168.2.103"
+	localhost := "localhost"
+	//localhost := "192.168.2.103"
 	host := irma.NewTranslatedString(&localhost)
 
 	ir, ok := request.(*irma.IssuanceRequest)

@@ -1,22 +1,21 @@
 #!/bin/bash
 
 echo "Generating keypair"
-irma scheme issuer keygen -f -l 2048
+irma scheme issuer keygen -f -l 2048 -c 3
+irma scheme issuer keygen -f -l 2048 -c 4
 
-echo "Moving private keys to ./testdata/privatekeys/"
-cp ./PrivateKeys/0.xml ./testdata/privatekeys/irma-demo.MijnOverheid.xml
-cp ./PrivateKeys/0.xml ./testdata/privatekeys/irma-demo.RU.xml
-cp ./PrivateKeys/0.xml ./testdata/privatekeys/test.test.xml
+echo "Removing keys from ./testdata/privatekeys/"
+rm ./testdata/privatekeys/*
 
 
 echo "Replacing issuers pub/priv keys"
-for issuer in "irma-demo/MijnOverheid" "irma-demo/RU" "test/test"
-do
-	rm -f ./testdata/irma_configuration/${issuer}/PublicKeys/*
-	rm -f ./testdata/irma_configuration/${issuer}/PrivateKeys/*
-	cp ./PublicKeys/0.xml ./testdata/irma_configuration/${issuer}/PublicKeys/
-	cp ./PrivateKeys/0.xml ./testdata/irma_configuration/${issuer}/PrivateKeys/
-done
+cp ./PublicKeys/3.xml ./testdata/irma_configuration/irma-demo/MijnOverheid/PublicKeys/
+cp ./PublicKeys/3.xml ./testdata/irma_configuration/irma-demo/RU/PublicKeys/
+cp ./PublicKeys/4.xml ./testdata/irma_configuration/test/test/PublicKeys/
+
+cp ./PrivateKeys/3.xml ./testdata/irma_configuration/irma-demo/MijnOverheid/PrivateKeys/
+cp ./PrivateKeys/3.xml ./testdata/irma_configuration/irma-demo/RU/PrivateKeys/
+cp ./PrivateKeys/4.xml ./testdata/irma_configuration/test/test/PrivateKeys/
 
 echo "Signing schemes"
 cd ./testdata/irma_configuration/irma-demo/
