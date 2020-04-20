@@ -1,8 +1,8 @@
 #!/bin/bash
 
 echo "Generating keypair"
-irma scheme issuer keygen -f -l 2048 -c 3
-irma scheme issuer keygen -f -l 2048 -c 4
+#irma scheme issuer keygen -f -l 2048 -c 3
+#irma scheme issuer keygen -f -l 2048 -c 4
 
 echo "Removing keys from ./testdata/privatekeys/"
 rm ./testdata/privatekeys/*
